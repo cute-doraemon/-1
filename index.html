@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>流光跃迁者 | 超新星色彩狂飙</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #0a0f1e, #03050b);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Poppins', 'Orbitron', system-ui, -apple-system, 'Monaco', monospace;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* 游戏主容器 */
+        .game-container {
+            position: relative;
+            border-radius: 48px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(255, 255, 255, 0.05);
+            background: rgba(5, 10, 25, 0.4);
+            backdrop-filter: blur(2px);
+            padding: 12px;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 32px;
+            box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.3), 0 20px 35px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        canvas:active {
+            transform: scale(0.99);
+        }
+
+        /* 炫光 UI 面板 */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0 28px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .score-box, .best-box {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            border-radius: 60px;
+            padding: 8px 22px;
+            border: 1px solid rgba(0, 255, 255, 0.6);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .score-label, .best-label {
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: #7efff0;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px cyan;
+        }
+
+        .score-value, .best-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #f0f9ff;
+            text-shadow: 0 0 8px #0af;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .combo-indicator {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: radial-gradient(ellipse at center, #ff3366, #aa1144);
+            padding: 8px 20px;
+            border-radius: 80px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-family: 'Orbitron', monospace;
+            color: white;
+            text-shadow: 0 0 10px #ff6699;
+            box-shadow: 0 0 20px #ff3366;
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0;
+            transition: 0.1s linear;
+            letter-spacing: 2px;
+        }
+
+        .game-over-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            border-radius: 32px;
+            z-index: 30;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.25s ease;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .game-over-panel.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .game-over-card {
+            background: linear-gradient(145deg, #111a2e, #030617);
+            padding: 30px 45px;
+            border-radius: 56px;
+            text-align: center;
+            border: 2px solid #ff44aa;
+            box-shadow: 0 0 60px rgba(255, 68, 170, 0.5);
+            transform: scale(0.9);
+            animation: pulsePop 0.4s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+        }
+
+        @keyframes pulsePop {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .game-over-card h2 {
+            font-size: 2.6rem;
+            color: #ff66cc;
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px #ff44aa;
+        }
+
+        .final-score {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #f0ff80;
+            margin: 15px 0;
+            text-shadow: 0 0 12px #ffcc44;
+        }
+
+        .restart-btn {
+            background: #ff3366;
+            border: none;
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 12px 32px;
+            border-radius: 60px;
+            color: white;
+            margin-top: 20px;
+            cursor: pointer;
+            font-family: 'Orbitron', monospace;
+            transition: 0.2s;
+            box-shadow: 0 5px 0 0 #990033;
+        }
+
+        .restart-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 0 #990033;
+        }
+
+        .instruction {
+            position: absolute;
+            bottom: 18px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #9dd8ff;
+            background: rgba(0,0,0,0.4);
+            width: fit-content;
+            margin: 0 auto;
+            padding: 6px 16px;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            z-index: 10;
+            font-family: monospace;
+        }
+
+        @media (max-width: 600px) {
+            .score-value, .best-value { font-size: 1.6rem; }
+            .score-box, .best-box { padding: 4px 16px; }
+            .combo-indicator { font-size: 1.2rem; top: 80px; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div class="info-panel">
+        <div class="score-box"><div class="score-label">✦ 流光 ✦</div><div class="score-value" id="scoreValue">0</div></div>
+        <div class="best-box"><div class="best-label">⚡ 极光记录 ⚡</div><div class="best-value" id="bestValue">0</div></div>
+    </div>
+    <div class="combo-indicator" id="comboPopup">🔥 炫光连击 🔥</div>
+    <div class="instruction">🖱️ 鼠标移动 / 手指滑动 → 控制光球 | 🎨 穿过同色光门！连击爆分 ✨</div>
+    <div id="gameOverPanel" class="game-over-panel">
+        <div class="game-over-card">
+            <h2>🌀 跃迁中断 🌀</h2>
+            <div class="final-score" id="finalScoreSpan">0</div>
+            <button class="restart-btn" id="restartButton">⚡ 重启跃迁 ⚡</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- 超新奇设定: 色彩共鸣者 ----------
+        // 控制流光核心，穿越动态“虹彩门扉”，必须匹配颜色才能通过，获得分数和连击！
+        // 门扉会变化颜色、位置，还有速度波纹。每次完美匹配获得霓虹之力，COMBO爆炸特效
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 游戏参数
+        let width = 800, height = 600;
+        canvas.width = width;
+        canvas.height = height;
+        
+        // 游戏状态
+        let gameRunning = true;
+        let score = 0;
+        let bestScore = localStorage.getItem('quantumBest') ? parseInt(localStorage.getItem('quantumBest')) : 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let comboTimeout = null;
+        
+        // 核心: 玩家光球
+        const player = {
+            x: width/2,
+            y: height - 70,
+            radius: 16,
+            color: 'cyan'
+        };
+        
+        // 动态颜色池 (炫丽虹彩)
+        const colorPalette = [
+            { name: '赤红', code: '#ff3366', glow: '#ff3366', scoreBonus: 10 },
+            { name: '橙焰', code: '#ff884d', glow: '#ff884d', scoreBonus: 10 },
+            { name: '金芒', code: '#ffdd44', glow: '#ffdd44', scoreBonus: 10 },
+            { name: '翠绿', code: '#33ff66', glow: '#33ff66', scoreBonus: 10 },
+            { name: '青涟', code: '#33ffff', glow: '#33ffff', scoreBonus: 10 },
+            { name: '靛蓝', code: '#4d4dff', glow: '#4d4dff', scoreBonus: 10 },
+            { name: '紫罗兰', code: '#cc66ff', glow: '#cc66ff', scoreBonus: 10 },
+            { name: '霓虹粉', code: '#ff66cc', glow: '#ff66cc', scoreBonus: 10 }
+        ];
+        
+        // 当前玩家颜色索引 (动态变化，但初始随机，随穿越特殊门会改变?)
+        let currentPlayerColorIdx = Math.floor(Math.random() * colorPalette.length);
+        player.color = colorPalette[currentPlayerColorIdx].code;
+        
+        // 门对象管理
+        let gates = [];
+        let gateSpawnCounter = 0;
+        const GATE_SPAWN_DELAY_FRAMES = 38;   // 生成门频率
+        let lastFrameTimestamp = 0;
+        
+        // 门基础配置
+        const GATE_WIDTH = 60;
+        const GATE_HEIGHT = 28;
+        
+        // 动态门效果: 每个门都有自己的颜色索引，以及Y位置，并且缓慢移动
+        class Gate {
+            constructor(x, y, colorIdx, speedY = 1.9) {
+                this.x = x;
+                this.y = y;
+                this.width = GATE_WIDTH;
+                this.height = GATE_HEIGHT;
+                this.colorIdx = colorIdx;
+                this.colorCode = colorPalette[colorIdx].code;
+                this.speedY = speedY + Math.random() * 1.2;  // 差异化下落速度 增加刺激感
+                this.passed = false;      // 是否已计分
+                this.pulse = 0;            // 呼吸特效
+            }
+            
+            update() {
+                this.y += this.speedY;
+                this.pulse = (this.pulse + 0.12) % (Math.PI * 2);
+            }
+            
+            draw(ctx) {
+                const glowStrength = Math.sin(this.pulse) * 0.3 + 0.7;
+                // 绘制半透明光晕
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.colorCode;
+                ctx.fillStyle = this.colorCode;
+                ctx.globalAlpha = 0.85 + Math.sin(this.pulse) * 0.15;
+                // 圆角矩形门扉 (虹彩拱门风格)
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height, 12);
+                ctx.fill();
+                // 内部流光纹理
+                ctx.globalAlpha = 0.7;
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.width/2 + 4, this.y - this.height/2 + 4, this.width - 8, 4, 4);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                // 边框 炫彩
+                ctx.strokeStyle = '#fff9c4';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.roundRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height, 12);
+                ctx.stroke();
+                // 显示颜色符号
+                ctx.font = `bold ${Math.min(18, this.width-12)}px monospace`;
+                ctx.fillStyle = '#ffffffcc';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = this.colorCode;
+                ctx.fillText("🌀", this.x - 12, this.y + 6);
+                ctx.font = `bold 12px 'Orbitron'`;
+                ctx.fillStyle = 'white';
+                ctx.fillText(colorPalette[this.colorIdx].name.slice(0,2), this.x - 12, this.y - 8);
+                ctx.shadowBlur = 0;
+            }
+        }
+        
+        // 辅助: roundRect
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.moveTo(x+r, y);
+                this.lineTo(x+w-r, y);
+                this.quadraticCurveTo(x+w, y, x+w, y+r);
+                this.lineTo(x+w, y+h-r);
+                this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+                this.lineTo(x+r, y+h);
+                this.quadraticCurveTo(x, y+h, x, y+h-r);
+                this.lineTo(x, y+r);
+                this.quadraticCurveTo(x, y, x+r, y);
+                return this;
+            };
+        }
+        
+        // 生成新门 (位置x 随机, 颜色随机, Y从顶部开始 - 少量偏移)
+        function spawnGate() {
+            const randX = 60 + Math.random() * (width - 120);
+            const randColor = Math.floor(Math.random() * colorPalette.length);
+            // 避免太多相同颜色连续出现, 但完全随机也可以增加挑战性
+            const speed = 1.6 + Math.random() * 2.2;
+            gates.push(new Gate(randX, -GATE_HEIGHT, randColor, speed));
+        }
+        
+        // 更新玩家位置 (鼠标/触摸)
+        let mouseX = player.x;
+        function handleMove(clientX, containerRect) {
+            if (!gameRunning) return;
+            let canvasRect = canvas.getBoundingClientRect();
+            let scaleX = canvas.width / canvasRect.width;
+            let rawX = (clientX - canvasRect.left) * scaleX;
+            let newX = Math.min(Math.max(rawX, player.radius + 8), width - player.radius - 8);
+            player.x = newX;
+            mouseX = player.x;
+        }
+        
+        function onPointerMove(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            let clientX;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+            } else {
+                clientX = e.clientX;
+            }
+            handleMove(clientX, rect);
+        }
+        
+        function onPointerDown(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            let clientX;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+            } else {
+                clientX = e.clientX;
+            }
+            handleMove(clientX, rect);
+        }
+        
+        // 碰撞与计分系统: 炫酷色彩匹配连击!!!
+        function handleCollisions() {
+            for (let i = 0; i < gates.length; i++) {
+                const gate = gates[i];
+                // 碰撞检测: 玩家圆形 vs 矩形门区域
+                const closestX = Math.max(gate.x - gate.width/2, Math.min(player.x, gate.x + gate.width/2));
+                const closestY = Math.max(gate.y - gate.height/2, Math.min(player.y, gate.y + gate.height/2));
+                const dx = closestX - player.x;
+                const dy = closestY - player.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < player.radius && !gate.passed) {
+                    // 碰撞门扉！判断颜色是否匹配
+                    const match = (gate.colorIdx === currentPlayerColorIdx);
+                    if (match) {
+                        // 完美匹配: 加分 + 连击递增
+                        gate.passed = true;
+                        let addScore = colorPalette[gate.colorIdx].scoreBonus + Math.floor(combo * 1.5);
+                        score += addScore;
+                        combo++;
+                        if (combo > maxCombo) maxCombo = combo;
+                        updateScoreUI();
+                        showComboEffect(addScore, gate.x, gate.y);
+                        // 重置连击计时器 (3秒未碰门则断连)
+                        if (comboTimeout) clearTimeout(comboTimeout);
+                        comboTimeout = setTimeout(() => {
+                            if (gameRunning) {
+                                combo = 0;
+                                updateComboDisplay(0);
+                            }
+                        }, 2800);
+                        updateComboDisplay(combo);
+                        // 增加闪耀粒子反馈
+                        spawnParticles(gate.x, gate.y, gate.colorCode);
+                        // 每次完美匹配, 额外动态改变玩家光晕, 且极低概率变色? (增加新奇感: 偶尔获得“虹彩共鸣”但保留原色更稳定, 不强制)
+                        // 但是为了有趣: 每得150分，玩家光球会变色一次（转换形态）
+                        if (score % 150 === 0 && score > 0) {
+                            let newIdx = (currentPlayerColorIdx + 1) % colorPalette.length;
+                            setPlayerColor(newIdx);
+                            // 屏幕闪烁特殊提示
+                            flashScreenEffect();
+                        }
+                    } else {
+                        // 颜色不匹配 —— 游戏结束！
+                        gameRunning = false;
+                        gameOver();
+                        return;
+                    }
+                }
+                
+                // 超出屏幕底部移除
+                if (gate.y + gate.height/2 > height + 80) {
+                    gates.splice(i,1);
+                    i--;
+                }
+            }
+        }
+        
+        function setPlayerColor(newIdx) {
+            currentPlayerColorIdx = newIdx;
+            player.color = colorPalette[currentPlayerColorIdx].code;
+        }
+        
+        function flashScreenEffect() {
+            canvas.style.transition = 'filter 0.1s';
+            canvas.style.filter = 'brightness(1.4) drop-shadow(0 0 10px cyan)';
+            setTimeout(() => { canvas.style.filter = ''; }, 150);
+        }
+        
+        // 粒子效果 (穿过门时的绚丽粒子)
+        let particles = [];
+        function spawnParticles(x, y, colorCode) {
+            for(let i=0;i<12;i++) {
+                particles.push({
+                    x: x, y: y, vx: (Math.random() - 0.5)*5, vy: (Math.random() - 1)*5 - 2,
+                    life: 0.8, color: colorCode, size: 3+Math.random()*5
+                });
+            }
+        }
+        
+        function updateParticles() {
+            for(let i=0;i<particles.length;i++) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life -= 0.025;
+                particles[i].vy += 0.2;
+                if(particles[i].life <= 0 || particles[i].y > height+50) {
+                    particles.splice(i,1);
+                    i--;
+                }
+            }
+        }
+        
+        function drawParticles() {
+            for(let p of particles) {
+                ctx.globalAlpha = p.life * 0.9;
+                ctx.fillStyle = p.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+        }
+        
+        let comboDisplayTimer = null;
+        function showComboEffect(addScore, x, y) {
+            const pop = document.getElementById('comboPopup');
+            pop.style.opacity = '1';
+            pop.style.transform = 'translateX(-50%) scale(1.2)';
+            pop.innerText = `✨ +${addScore}  ✨  COMBO x${combo}`;
+            setTimeout(() => {
+                if(pop) pop.style.opacity = '0';
+            }, 400);
+            setTimeout(() => {
+                if(pop) pop.style.transform = 'translateX(-50%) scale(1)';
+            }, 200);
+        }
+        
+        function updateComboDisplay(val) {
+            // 只是UI上没有常驻显示combo，但可以通过闪烁弹窗体现，但也可以直接在角落显示
+            // 增加一个在canvas上的combo文字特效，但可有可无
+            const pop = document.getElementById('comboPopup');
+            if(val > 2 && gameRunning) {
+                pop.innerText = `⚡ ${val} 连击! 色彩狂飙 ⚡`;
+                pop.style.opacity = '0.9';
+                setTimeout(()=>{ if(pop.style.opacity !== '0') pop.style.opacity = '0';}, 600);
+            }
+        }
+        
+        function updateScoreUI() {
+            document.getElementById('scoreValue').innerText = score;
+            if(score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('quantumBest', bestScore);
+                document.getElementById('bestValue').innerText = bestScore;
+            }
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            const panel = document.getElementById('gameOverPanel');
+            document.getElementById('finalScoreSpan').innerText = score;
+            panel.classList.add('show');
+        }
+        
+        function restartGame() {
+            gameRunning = true;
+            score = 0;
+            combo = 0;
+            maxCombo = 0;
+            gates = [];
+            particles = [];
+            if(comboTimeout) clearTimeout(comboTimeout);
+            updateScoreUI();
+            document.getElementById('bestValue').innerText = bestScore;
+            // 重置玩家颜色 (随机)
+            let newIdx = Math.floor(Math.random() * colorPalette.length);
+            setPlayerColor(newIdx);
+            player.x = width/2;
+            player.y = height - 70;
+            gateSpawnCounter = 5; // 快速生成门
+            document.getElementById('gameOverPanel').classList.remove('show');
+            document.getElementById('comboPopup').style.opacity = '0';
+        }
+        
+        // 绘制华丽背景与动态流光
+        function drawBackground() {
+            const grad = ctx.createLinearGradient(0, 0, width, height);
+            grad.addColorStop(0, '#020617');
+            grad.addColorStop(0.5, '#0a0f2a');
+            grad.addColorStop(1, '#010113');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+            // 动态星芒
+            for(let i=0;i<120;i++) {
+                if(i%2 === 0) continue;
+                ctx.fillStyle = `rgba(255,255,200,${Math.sin(Date.now()*0.001 + i)*0.2+0.2})`;
+                ctx.beginPath();
+                ctx.arc( (i*131)%width, (i*57)%height, 1.2, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        
+        function drawPlayer() {
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = player.color;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius-3, 0, Math.PI*2);
+            ctx.fillStyle = '#ffffffdd';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x-3, player.y-2, 3, 0, Math.PI*2);
+            ctx.fillStyle = '#000000';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x+3, player.y-2, 3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(player.x-4, player.y-3, 1, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x+2, player.y-3, 1, 0, Math.PI*2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            // 光晕环
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius+6, 0, Math.PI*2);
+            ctx.strokeStyle = player.color;
+            ctx.lineWidth = 1.8;
+            ctx.shadowBlur = 12;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawGates() {
+            for(let g of gates) {
+                g.draw(ctx);
+            }
+        }
+        
+        function updateGates() {
+            for(let g of gates) g.update();
+        }
+        
+        // 游戏主循环
+        function gameLoop() {
+            if(!gameRunning) {
+                drawBackground();
+                drawGates();
+                drawPlayer();
+                drawParticles();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            
+            // 生成门逻辑
+            gateSpawnCounter++;
+            if(gateSpawnCounter >= GATE_SPAWN_DELAY_FRAMES) {
+                gateSpawnCounter = 0;
+                spawnGate();
+                // 偶尔双倍门刺激 (20%概率额外再生成一个)
+                if(Math.random()<0.25) spawnGate();
+            }
+            
+            updateGates();
+            handleCollisions();
+            updateParticles();
+            
+            // 动态刷新UI展示分数
+            drawBackground();
+            drawGates();
+            drawPlayer();
+            drawParticles();
+            
+            // 显示当前玩家色彩文本
+            ctx.font = "bold 14px 'Orbitron'";
+            ctx.fillStyle = '#b0f0ff';
+            ctx.shadowBlur = 0;
+            ctx.fillText(`⚡ 共鸣: ${colorPalette[currentPlayerColorIdx].name}`, 20, 45);
+            ctx.font = "italic 12px monospace";
+            ctx.fillStyle = '#88ddff';
+            ctx.fillText(`连击 x${combo}`, 20, 80);
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 事件绑定
+        function bindEvents() {
+            canvas.addEventListener('mousemove', onPointerMove);
+            canvas.addEventListener('mousedown', onPointerDown);
+            canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+            canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+            window.addEventListener('resize', ()=>{});
+        }
+        
+        function init() {
+            bindEvents();
+            document.getElementById('bestValue').innerText = bestScore;
+            restartGame();
+            gameLoop();
+        }
+        
+        document.getElementById('restartButton').addEventListener('click', () => {
+            restartGame();
+        });
+        
+        init();
+    })();
+</script>
+</body>
+</html>
